@@ -5666,7 +5666,7 @@ public class ProfileActivity extends BaseFragment implements NotificationCenter.
         avatarContainer.setScaleY(avatarScale);
         avatarContainer.setTranslationX(AndroidUtilities.lerp(avatarX, 0f, value));
         avatarContainer.setTranslationY(AndroidUtilities.lerp((float) Math.ceil(avatarY), 0f, value));
-        avatarImage.setRoundRadius((int) AndroidUtilities.lerp(getSmallAvatarRoundRadius(), 0f, value));
+        avatarImage.setRoundRadius((int) AndroidUtilities.lerp(AndroidUtilities.dp(5f), 0f, value));
         if (storyView != null) {
             storyView.setExpandProgress(value);
         }

@@ -1,6 +1,7 @@
 package org.telegram.ui.Stars;
 
 import static org.telegram.messenger.AndroidUtilities.dp;
+import static org.telegram.messenger.AndroidUtilities.hasDialogOnTop;
 import static org.telegram.messenger.AndroidUtilities.lerp;
 import static org.telegram.ui.Stars.StarsController.findAttribute;
 
@@ -57,6 +58,7 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
     }
 
     private float expandProgress;
+
     public void setExpandProgress(float progress) {
         if (this.expandProgress != progress) {
             this.expandProgress = progress;
@@ -65,6 +67,7 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
     }
 
     private float actionBarProgress;
+
     public void setActionBarActionMode(float progress) {
 //        if (Theme.isCurrentThemeDark()) {
 //            return;
@@ -101,6 +104,7 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
     }
 
     private float progressToInsets = 1f;
+
     public void setProgressToStoriesInsets(float progressToInsets) {
         if (this.progressToInsets == progressToInsets) {
             return;
@@ -188,11 +192,11 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
         }
 
         public void draw(
-            Canvas canvas,
-            float cx, float cy,
-            float ascale, float rotate,
-            float alpha,
-            float gradientAlpha
+                Canvas canvas,
+                float cx, float cy,
+                float ascale, float rotate,
+                float alpha,
+                float gradientAlpha
         ) {
             if (alpha <= 0.0f) return;
             final float gsz = dp(45);
@@ -282,7 +286,7 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
             if (oldGift != null) {
                 g.copy(oldGift);
             } else {
-                g.gradient = new RadialGradient(0, 0, dp(22.5f), new int[] { g.color, Theme.multAlpha(g.color, 0.0f) }, new float[] { 0, 1 }, Shader.TileMode.CLAMP);
+                g.gradient = new RadialGradient(0, 0, dp(22.5f), new int[]{g.color, Theme.multAlpha(g.color, 0.0f)}, new float[]{0, 1}, Shader.TileMode.CLAMP);
                 g.gradientPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
                 g.gradientPaint.setShader(g.gradient);
                 if (g.document != null) {
@@ -340,84 +344,72 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
 
         final float closedAlpha = Utilities.clamp01((float) (expandY - (AndroidUtilities.statusBarHeight + ActionBar.getCurrentActionBarHeight())) / dp(50));
 
+        // Define the positions for the gifts, inspired by the circular layout in the second screenshot.
+        // Each position is defined by an angle (in degrees) and a multiplier for the base radius 'ar'.
+        // You can add or modify these values to fine-tune the sticker positions.
+        final float[] angles = {
+                -150f, // Top-left
+                -115f, // Mid-left
+                -80f,  // Top-center
+                -45f,  // Mid-right
+                -10f,  // Top-right
+                25f,   // Bottom-right
+                195f,  // Bottom-left
+        };
+
+        final float[] radiusMultipliers = {
+                1.0f,  // Top-left
+                1.15f, // Mid-left
+                1.0f,  // Top-center
+                1.15f, // Mid-right
+                1.0f,  // Top-right
+                1.15f, // Bottom-right
+                1.0f   // Bottom-left
+        };
+
+        // Iterate through the gifts and draw them in a circular arrangement.
         for (int i = 0; i < gifts.size(); ++i) {
+            // Ensure we don't try to access an index that is out of bounds for our position arrays.
+            if (i >= angles.length) {
+                break; // Stop drawing if there are more gifts than defined positions.
+            }
+
             final Gift gift = gifts.get(i);
             final float alpha = gift.animatedFloat.set(1.0f);
             final float scale = lerp(0.5f, 1.0f, alpha);
-            final int index = i; // gifts.size() == maxCount ? i - 1 : i;
-            if (index == 0) {
-                gift.draw(
+
+            // Get the angle and radius for the current gift from our arrays.
+            final float angleDegrees = angles[i];
+            final float radius = ar * radiusMultipliers[i]; // 'ar' is the base radius from the avatar center.
+
+            // Convert the angle to radians for trigonometric functions.
+            final float angleRadians = (float) (angleDegrees / 180.0f * Math.PI);
+
+            // Calculate the (x, y) position on the circle around the avatar.
+            // (acx, acy) is assumed to be the center of the avatar.
+            final float giftX = (float) (acx + radius * Math.cos(angleRadians));
+            final float giftY = (float) (acy + radius * Math.sin(angleRadians));
+
+            // Calculate the rotation of the gift's bitmap.
+            // Adding 90 degrees makes the gift appear "upright" relative to the circle's edge.
+            final float rotation = angleDegrees + 90;
+
+            // Preserve the original alpha animations for a smooth user experience.
+            final float animatedAlpha = alpha * (1.0f - expandProgress) * (1.0f - actionBarProgress) * (closedAlpha);
+
+            // The last parameter of draw() was used for special scaling on one sticker.
+            // For this new, consistent layout, we'll use a standard value of 1.0f.
+            final float secondaryScale = 1.0f;
+
+            gift.draw(
                     canvas,
-                    (float) (acx + ar * Math.cos(-65 / 180.0f * Math.PI)),
-                    (float) (acy + ar * Math.sin(-65 / 180.0f * Math.PI)),
-                    scale, -65 + 90,
-                    alpha * (1.0f - expandProgress), lerp(0.9f, 0.25f, actionBarProgress)
-                );
-            } else if (index == 1) {
-                gift.draw(
-                    canvas,
-                    lerp(cacx + Math.min(getWidth() * .27f, dp(62)), cx, 0.5f * actionBarProgress), acy - dp(52),
-                    scale, -4.0f,
-                    alpha * alpha * (1.0f - expandProgress) * (1.0f - actionBarProgress) * (closedAlpha),
-                    1.0f
-                );
-            } else if (index == 2) {
-                gift.draw(
-                    canvas,
-                    lerp(cacx + Math.min(getWidth() * .46f, dp(105)), cx, 0.5f * actionBarProgress), acy - dp(72),
-                    scale, 8.0f,
-                    alpha * (1.0f - expandProgress) * (1.0f - actionBarProgress) * (closedAlpha),
-                    1.0f
-                );
-            } else if (index == 3) {
-                gift.draw(
-                    canvas,
-                    lerp(cacx + Math.min(getWidth() * .60f, dp(136)), cx, 0.5f * actionBarProgress), acy - dp(46),
-                    scale, 3.0f,
-                    alpha * (1.0f - expandProgress) * (1.0f - actionBarProgress) * (closedAlpha),
-                    1.0f
-                );
-            } else if (index == 4) {
-                gift.draw(
-                    canvas,
-                    lerp(cacx + Math.min(getWidth() * .08f, dp(21.6f)), cx, 0.5f * actionBarProgress), acy - dp(82f),
-                    scale, -3.0f,
-                    alpha * (1.0f - expandProgress) * (1.0f - actionBarProgress) * (closedAlpha),
-                    1.0f
-                );
-            } else if (index == 5) {
-                gift.draw(
-                    canvas,
-                    lerp(cacx + Math.min(getWidth() * .745f, dp(186)), cx, 0.5f * actionBarProgress), acy - dp(39),
-                    scale, 2.0f,
-                    alpha * (1.0f - expandProgress) * (1.0f - actionBarProgress) * (closedAlpha),
-                    1.0f
-                );
-            } else if (index == 6) {
-                gift.draw(
-                    canvas,
-                    cacx + Math.min(getWidth() * .38f, dp(102)), expandY - dp(12),
-                    scale, 0,
-                    alpha * (1.0f - expandProgress) * (1.0f - actionBarProgress) * (closedAlpha),
-                    1.0f
-                );
-            } else if (index == 7) {
-                gift.draw(
-                    canvas,
-                    cacx + Math.min(getWidth() * .135f, dp(36)), expandY - dp(17.6f),
-                    scale, -5.0f,
-                    alpha * (1.0f - expandProgress) * (1.0f - actionBarProgress) * (closedAlpha),
-                    1.0f
-                );
-            } else if (index == 8) {
-                gift.draw(
-                    canvas,
-                    cacx + Math.min(getWidth() * .76f, dp(178)), expandY - dp(21.66f),
-                    scale, 5.0f,
-                    alpha * (1.0f - expandProgress) * (1.0f - actionBarProgress) * (closedAlpha),
-                    1.0f
-                );
-            }
+                    giftX,
+                    giftY,
+                    scale,
+                    rotation,
+                    animatedAlpha,
+                    secondaryScale
+            );
         }
 
         canvas.restore();
@@ -432,6 +424,7 @@ public class ProfileGiftsView extends View implements NotificationCenter.Notific
     }
 
     private Gift pressedGift;
+
     @Override
     public boolean onTouchEvent(MotionEvent event) {
         final Gift hit = getGiftUnder(event.getX(), event.getY());
